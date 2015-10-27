@@ -1,0 +1,1 @@
+python blackjack.py $1
