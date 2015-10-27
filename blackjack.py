@@ -19,6 +19,10 @@ dealerProb = [[0 for x in range(50)] for x in range(6)]
 for ii in range(0, 6):
 	for jj in range(0, 50):
 		dealerProb[ii][jj] = 0
+dealerUpFace = [[0 for x in range(10)] for x in range(6)]
+for ii in range(0, 6):
+	for jj in range(0, 10):
+		dealerUpFace[ii][jj] = 0
 
 dealerProb[0][15] = 1
 dealerProb[1][16] = 1
@@ -66,14 +70,24 @@ def genDealerTable():
 			jj -= 1
 
 genDealerTable()
-printDealerTable()
+# printDealerTable()
+for ii in range(0, 6):
+	for jj in range(0, 8):
+		dealerUpFace[ii][jj] = dealerProb[ii][jj]
+	for count in range(0, 8):
+		dealerUpFace[ii][8] += p*dealerProb[ii][count+10]
+	dealerUpFace[ii][8] += (1-p*9)*dealerProb[ii][18]
+	dealerUpFace[ii][8] += p*dealerProb[ii][19]
 
+	for count in range(0, 8):
+		dealerUpFace[ii][9] += p*dealerProb[ii][count+30]
+	dealerUpFace[ii][9] += (1-p*9)*dealerProb[ii][39]
 
-def optimalEV( total, activeAce,dealerUpCard, bet ):
+def optimalEV( total, activeAce,dealerUpCard):
 
 	if(total > 21):
 		if(activeAce): #//change A from 11 to 1
-			return optimalEV(total-10,false,dealerUpCard)
+			return optimalEV(total-10,False,dealerUpCard)
 		else:
 			return -1 #; //Bust - Lose 1 bet
 	
@@ -98,8 +112,32 @@ def hit( handTotal, activeAce,dealerUpCard):
 		expectation += optimalEV(handTotal + 1, activeAce, dealerUpCard)
 	return expectation / 13.0 #; //average of all possibilities
 	
-def stand( total,  dealerUpCard) :
-return p(D Bust) + p(D < total) - p(D > total) # ; //array lookup
+def stand(total,  dealerUpCard) :
+	k=0
+	if (dealerUpCard == 1):
+		k=9
+	else:
+		k=dealerUpCard-2
+
+	ret = dealerUpFace[5][k]
+	i=0
+	j=total-17
+	win=0.0
+	loss=0.0
+	while(i<j):
+		win+=dealerUpFace[i][k]
+		print "win",win
+		i+=1
+	if(j<0):
+		j=0
+	else:
+		j+=1
+	while(j<len(dealerUpFace)-1):
+		loss+= dealerUpFace[j][k]
+		print "loss",loss
+		j+=1
+	return ret+win-loss
+
 
 
 def doubledown(handTotal , activeAce , dealerUpCard ):
@@ -117,4 +155,4 @@ def doubledown(handTotal , activeAce , dealerUpCard ):
 	return 2*expectation / 13.0 #; //average of all possibilities & two times the bet 
 	
 #def split()
-
+print hit(13,True, 5)
