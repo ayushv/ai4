@@ -5,7 +5,9 @@ import os
 
 # print sys.argv
 p = sys.argv[1]
-p = float(p)
+q=sys.argv[2]
+
+p = float(p)/float(q)
 p = (1-p)/9
 print 'p = ', p
 # print 'type of p = ', type(p)
@@ -65,3 +67,54 @@ def genDealerTable():
 
 genDealerTable()
 printDealerTable()
+
+
+def optimalEV( total, activeAce,dealerUpCard, bet ):
+
+	if(total > 21):
+		if(activeAce): #//change A from 11 to 1
+			return optimalEV(total-10,false,dealerUpCard)
+		else:
+			return -1 #; //Bust - Lose 1 bet
+	
+	evHit = hit(total,activeAce,dealerUpCard)
+	evStand = stand(total,dealerUpCard)
+	evdoubledown=doubledown(total,activeAce,dealerUpCard)
+
+	return max(evHit,evStand,evdoubledown)
+
+
+def hit( handTotal, activeAce,dealerUpCard):
+	expectation = 0.0
+#//normal valued card
+	for t in range(2,10):
+		expectation += optimalEV(handTotal + t, activeAce, dealerUpCard)
+#//10 or face card
+	expectation += 4.0*optimalEV(handTotal + 10, activeAce, dealerUpCard)
+#//ace -- handled different
+	if(handTotal < 11):
+		expectation += optimalEV(handTotal + 11, true, dealerUpCard)
+	else:
+		expectation += optimalEV(handTotal + 1, activeAce, dealerUpCard)
+	return expectation / 13.0 #; //average of all possibilities
+	
+def stand( total,  dealerUpCard) :
+return p(D Bust) + p(D < total) - p(D > total) # ; //array lookup
+
+
+def doubledown(handTotal , activeAce , dealerUpCard ):
+	expectation = 0.0
+#//normal valued card
+	for t in range(2,10):
+		expectation += stand(handTotal + t, dealerUpCard)
+#//10 or face card
+	expectation += 4.0*stand(handTotal + 10, dealerUpCard)
+#//ace -- handled different
+	if(handTotal < 11):
+		expectation += stand(handTotal + 11, dealerUpCard)
+	else:
+		expectation += stand(handTotal + 1,dealerUpCard)
+	return 2*expectation / 13.0 #; //average of all possibilities & two times the bet 
+	
+#def split()
+
