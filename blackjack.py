@@ -5,24 +5,13 @@ import os
 
 # print sys.argv
 p = sys.argv[1]
-q=sys.argv[2]
-
-p = float(p)/float(q)
+p = float(p)
 p = (1-p)/9
-print 'p = ', p
+# print 'prob = ', p
 # print 'type of p = ', type(p)
 
-# class state:
-# 	dealerFaceUp = 0
-
 dealerProb = [[0 for x in range(50)] for x in range(6)]
-for ii in range(0, 6):
-	for jj in range(0, 50):
-		dealerProb[ii][jj] = 0
 dealerUpFace = [[0 for x in range(10)] for x in range(6)]
-for ii in range(0, 6):
-	for jj in range(0, 10):
-		dealerUpFace[ii][jj] = 0
 
 dealerProb[0][15] = 1
 dealerProb[1][16] = 1
@@ -42,15 +31,13 @@ dealerProb[4][49] = 1
 for ii in range(20, 30):
 	dealerProb[5][ii] = 1
 
-def printDealerTable():
-	# for ii in range(0, 30):
-	# 	print ii % 10,
-	for ii in range(0, 6):
+def print2DArray(arrayname):
+	for ii in range(0, len(arrayname)):
 		print '\n'
-		for jj in range(0, 30):
-			print dealerProb[ii][jj],
-# printDealerTable()
+		for jj in range(0, len(arrayname[0])):
+			print arrayname[ii][jj],
 
+# print2DArray(dealerProb)
 def genDealerTable():
 	for ii in range(0, 6):
 		jj = 14
@@ -68,91 +55,285 @@ def genDealerTable():
 					dealerProb[ii][jj+30] += p*dealerProb[ii][jj+30+count]
 				dealerProb[ii][jj+30] += (1-9*p)*dealerProb[ii][jj+40]
 			jj -= 1
+# printDealerTable()
+def genDealerUpFace():
+	for ii in range(0, 6):
+		for jj in range(0, 8):
+			dealerUpFace[ii][jj] = dealerProb[ii][jj]
+		for count in range(0, 8):
+			dealerUpFace[ii][8] += p*dealerProb[ii][count+10]
+		dealerUpFace[ii][8] += (1-p*9)*dealerProb[ii][18]
+		dealerUpFace[ii][8] += p*dealerProb[ii][19]
+
+		for count in range(0, 9):
+			dealerUpFace[ii][9] += p*dealerProb[ii][count+30]
+		dealerUpFace[ii][9] += (1-p*9)*dealerProb[ii][39]
 
 genDealerTable()
-# printDealerTable()
-for ii in range(0, 6):
-	for jj in range(0, 8):
-		dealerUpFace[ii][jj] = dealerProb[ii][jj]
-	for count in range(0, 8):
-		dealerUpFace[ii][8] += p*dealerProb[ii][count+10]
-	dealerUpFace[ii][8] += (1-p*9)*dealerProb[ii][18]
-	dealerUpFace[ii][8] += p*dealerProb[ii][19]
+genDealerUpFace()
+# print2DArray(dealerUpFace)
 
-	for count in range(0, 8):
-		dealerUpFace[ii][9] += p*dealerProb[ii][count+30]
-	dealerUpFace[ii][9] += (1-p*9)*dealerProb[ii][39]
+# expected value for action stand
+evStand = [[0 for x in range(10)] for x in range(48)]
 
-def optimalEV( total, activeAce,dealerUpCard):
+def genEvStand():
+	calcHardEvStand()
+	calcSoftEvStand()
+def calcHardEvStand():
+	for ii in range(0, 13):
+		for jj in range(0, 10):	
+			kk = 0
+			while (kk < len(dealerUpFace)-1):
+				evStand[ii][jj] -= dealerUpFace[kk][jj]
+				# if (jj == 9):
+					# print 'asd', dealerUpFace[kk][jj]
+				kk += 1
+			evStand[ii][jj] += dealerUpFace[5][jj]
+	for ii in range(13, 18):
+		for jj in range(0, 10):
+			count = 13
+			# print 'ii = ', ii, ' jj = ', jj
+			while (count < ii):
+				evStand[ii][jj] += dealerUpFace[count-13][jj]
+				# if (ii == 13 and jj == 0):
+				# 	print 'add ', dealerUpFace[count-13][jj]
+				count += 1
+			count = ii+1
+			while (count < 18):
+				evStand[ii][jj] -= dealerUpFace[count-13][jj]
+				# if (ii == 13 and jj == 0):
+					# print 'subtract ', dealerUpFace[count-13][jj]
+				count += 1
+			evStand[ii][jj] += dealerUpFace[5][jj]
+			# if (ii == 13 and jj == 0):
+			# 	print 'add ', dealerUpFace[5][jj]
+def calcSoftEvStand():
+	for ii in range(18, 28):
+		for jj in range(0, 10):
+			evStand[ii][jj] = -1
+	for ii in range(28, 38):
+		for jj in range(0, 10):
+			evStand[ii][jj] = evStand[ii-20][jj]
+			evStand[ii+10][jj] = evStand[ii][jj]
+genEvStand()
+# print2DArray(evStand)
 
-	if(total > 21):
-		if(activeAce): #//change A from 11 to 1
-			return optimalEV(total-10,False,dealerUpCard)
-		else:
-			return -1 #; //Bust - Lose 1 bet
-	
-	evHit = hit(total,activeAce,dealerUpCard)
-	evStand = stand(total,dealerUpCard)
-	evdoubledown=doubledown(total,activeAce,dealerUpCard)
+evHit = [[0 for x in range(10)] for x in range(48)]
+for ii in range(17, 28):
+	for jj in range(0, 10):
+		evHit[ii][jj] = -1
+def updateEvHit():
+	evHitUpdated = False
+	ii = 16
+	while (ii >= 0):
+		for jj in range(0, 10):
+			if (ii > 6):
+				evHit[ii+31][jj] = evHit[ii+1][jj]
+			temp = 0.0
+			for count in range(2, 10):
+				temp += p*evStandHit[ii+count][jj]
+			temp += (1-9*p)*evStandHit[ii+count+1][jj]
+			temp += p*evStandHit[ii+31][jj]
+			if (evHit[ii][jj] != temp):
+				evHit[ii][jj] = temp
+				evHitUpdated = True
+				# print 'updated evHit'
+		ii -= 1
+	ii = 37
+	while(ii > 27):
+		for jj in range(0, 10):
+			temp = 0.0
+			for count in range(1, 10):
+				temp += p*evStandHit[ii+count][jj]
+			temp += (1-9*p)*evStandHit[ii+count+1][jj]
+			if (evHit[ii][jj] != temp):
+				evHit[ii][jj] = temp
+				evHitUpdated = True
+		ii -= 1
 
-	return max(evHit,evStand,evdoubledown)
 
+evStandHit = [[0 for x in range(10)] for x in range(48)]
+def updateEvStandHit():
+	evStandHitUpdated = False
+	for ii in range(0, 48):
+		for jj in range(0, 10):
+			if (evStandHit[ii][jj] != max(evStand[ii][jj], evHit[ii][jj])):
+				evStandHit[ii][jj] = max(evStand[ii][jj], evHit[ii][jj])
+				evStandHitUpdated = True
+				# print 'updated evStandHit'
+def genEvStandHit():
+	evHitUpdated = True
+	evStandHitUpdated = True
+	for ii in range(0, 300):
+		# print 'while loop ', evHitUpdated, ' ', evStandHitUpdated
+		if (evStandHitUpdated):
+			# print 'update StandHit'
+			updateEvStandHit()
+		if (evHitUpdated):
+			# print 'update Hit'
+			updateEvHit()
+	# print 'while end'
+genEvStandHit()
+# print2DArray(evStandHit)
 
-def hit( handTotal, activeAce,dealerUpCard):
-	expectation = 0.0
-#//normal valued card
-	for t in range(2,10):
-		expectation += optimalEV(handTotal + t, activeAce, dealerUpCard)
-#//10 or face card
-	expectation += 4.0*optimalEV(handTotal + 10, activeAce, dealerUpCard)
-#//ace -- handled different
-	if(handTotal < 11):
-		expectation += optimalEV(handTotal + 11, true, dealerUpCard)
+evDouble = [[0 for x in range(10)] for x in range(48)]
+for ii in range(17, 28):
+		for jj in range(0, 10):
+			evDouble[ii][jj] = -2
+def genEvDouble():
+	ii = 16
+	while(ii > 7):
+		for jj in range(0, 10):
+			for count in range(1, 10):
+				evDouble[ii][jj] += p*evStand[ii+count][jj]
+			evDouble[ii][jj] += (1-9*p)*evStand[ii+count+1][jj]
+			evDouble[ii][jj] = 2*evDouble[ii][jj]
+			evDouble[ii+31][jj] = evDouble[ii+1][jj]
+		ii -= 1
+	for jj in range(0, 10):
+		evDouble[ii+31][jj] = evDouble[ii+1][jj]
+	while(ii >= 0):
+		for jj in range(0, 10):
+			for count in range(2, 10):
+				evDouble[ii][jj] += p*evStand[ii+count][jj]
+			evDouble[ii][jj] += (1-9*p)*evStand[ii+count+1][jj]
+			evDouble[ii][jj] += p*evStand[ii+31][jj]
+			evDouble[ii][jj] = 2*evDouble[ii][jj]
+		ii -= 1
+	ii = 37
+	while(ii > 27):
+		for jj in range(0, 10):
+			for count in range(1, 10):
+				evDouble[ii][jj] += p*evStand[ii+count][jj]
+			evDouble[ii][jj] += (1-9*p)*evStand[ii+count+1][jj]
+			evDouble[ii][jj] = 2*evDouble[ii][jj]
+		ii -= 1
+genEvDouble()
+# print2DArray(evDouble)
+
+evStandHitDouble = [[0 for x in range(10)] for x in range(48)]
+def genEvStandHitDouble():
+	for ii in range(0, 48):
+		for jj in range(0, 10):
+			evStandHitDouble[ii][jj] = max(evDouble[ii][jj], evStandHit[ii][jj])
+genEvStandHitDouble()
+
+evSplit = [[0 for x in range(10)] for x in range(10)]
+def genEvSplit():
+	for ii in range(0, 9):
+		for jj in range(0, 10):
+			for count in range(0, 8):
+				evSplit[ii][jj] += p*evStandHitDouble[ii+count][jj]
+				# if (ii == 0 and jj == 0):
+					# print evStandHitDouble[ii+count][jj]
+			evSplit[ii][jj] += (1-9*p)*evStandHitDouble[ii+count+1][jj]
+			# if (ii == 0 and jj == 0):
+				# print evStandHitDouble[ii+count+1][jj]
+			evSplit[ii][jj] += p*evStandHitDouble[ii+29][jj]
+			# if (ii == 0 and jj == 0):
+				# print evStandHitDouble[ii+29][jj]
+			evSplit[ii][jj] = 2*evSplit[ii][jj]
+	ii = 9
+	for jj in range(0, 10):
+		for count in range(0, 9):
+			evSplit[ii][jj] += p*evStand[ii+count+19][jj]
+		evSplit[ii][jj] += (1-9*p)*evStand[ii+count+20][jj]
+		evSplit[ii][jj] = 2*evSplit[ii][jj]
+genEvSplit()
+
+evFinalStrategy = [[0 for x in range(10)] for x in range(33)]
+finalStrategy = [[0 for x in range(10)] for x in range(33)]
+def genEvFinalStrategy():
+	# total 33 hand values for player: 15 + 8 + 10
+	for ii in range(1, 16):
+		for jj in range(0, 10):
+			evFinalStrategy[ii-1][jj] = max(evDouble[ii][jj], evStandHit[ii][jj])
+			if (evFinalStrategy[ii-1][jj] == evDouble[ii][jj]):
+				finalStrategy[ii-1][jj] = 'D'
+			elif (evFinalStrategy[ii-1][jj] == evStand[ii][jj]):
+				finalStrategy[ii-1][jj] = 'S'
+			elif (evFinalStrategy[ii-1][jj] == evHit[ii][jj]):
+				finalStrategy[ii-1][jj] = 'H'
+	for ii in range(29, 37):
+		for jj in range(0, 10):
+			evFinalStrategy[ii-14][jj] = max(evDouble[ii][jj], evStandHit[ii][jj])
+			if (evFinalStrategy[ii-14][jj] == evDouble[ii][jj]):
+				finalStrategy[ii-14][jj] = 'D'
+			elif (evFinalStrategy[ii-14][jj] == evStand[ii][jj]):
+				finalStrategy[ii-14][jj] = 'S'
+			elif (evFinalStrategy[ii-14][jj] == evHit[ii][jj]):
+				finalStrategy[ii-14][jj] = 'H'
+	index = 0
+	ii = 23
+	while(ii < 32):
+		for jj in range(0, 10):
+			evFinalStrategy[ii][jj] = max(evStandHitDouble[index][jj], evSplit[index/2][jj])
+			if (evFinalStrategy[ii][jj] == evSplit[index/2][jj]):
+				finalStrategy[ii][jj] = 'P'
+			elif (evFinalStrategy[ii][jj] == evDouble[index][jj]):
+				finalStrategy[ii][jj] = 'D'
+			elif (evFinalStrategy[ii][jj] == evStand[index][jj]):
+				finalStrategy[ii][jj] = 'S'
+			elif (evFinalStrategy[ii][jj] == evHit[index][jj]):
+				finalStrategy[ii][jj] = 'H'
+		ii += 1
+		index += 2
+	index = 28 # for soft 12 hand of player
+	for jj in range(0, 10):
+		evFinalStrategy[ii][jj] = max(evStandHitDouble[index][jj], evSplit[9][jj])
+		if (evFinalStrategy[ii][jj] == evSplit[9][jj]):
+				finalStrategy[ii][jj] = 'P'
+		elif (evFinalStrategy[ii][jj] == evDouble[index][jj]):
+			finalStrategy[ii][jj] = 'D'
+		elif (evFinalStrategy[ii][jj] == evStand[index][jj]):
+			finalStrategy[ii][jj] = 'S'
+		elif (evFinalStrategy[ii][jj] == evHit[index][jj]):
+			finalStrategy[ii][jj] = 'H'
+
+genEvFinalStrategy()
+
+data = ''
+index = 5
+count = 0
+while (index < 20):
+	data += str(index)
+	data += '\t'
+	for jj in range(0, 10):
+		data += str(finalStrategy[count][jj])
+		if (jj != 9):
+			data += ' '
+	data += '\n'
+	index += 1
+	count += 1
+index = 2
+while (index < 10):
+	data += ('A' + str(index))
+	data += '\t'
+	for jj in range(0, 10):
+		data += str(finalStrategy[count][jj])
+		if (jj != 9):
+			data += ' '
+	data += '\n'
+	index += 1
+	count += 1
+index = 2
+while (index < 12):
+	if (index == 11):
+		data += 'AA'
 	else:
-		expectation += optimalEV(handTotal + 1, activeAce, dealerUpCard)
-	return expectation / 13.0 #; //average of all possibilities
-	
-def stand(total,  dealerUpCard) :
-	k=0
-	if (dealerUpCard == 1):
-		k=9
-	else:
-		k=dealerUpCard-2
+		data += (str(index) + str(index))
+	data += '\t'
+	for jj in range(0, 10):
+		data += str(finalStrategy[count][jj])
+		if (jj != 9):
+			data += ' '
+	if (index != 11):
+		data += '\n'
+	index += 1
+	count += 1
+# print data
 
-	ret = dealerUpFace[5][k]
-	i=0
-	j=total-17
-	win=0.0
-	loss=0.0
-	while(i<j):
-		win+=dealerUpFace[i][k]
-		print "win",win
-		i+=1
-	if(j<0):
-		j=0
-	else:
-		j+=1
-	while(j<len(dealerUpFace)-1):
-		loss+= dealerUpFace[j][k]
-		print "loss",loss
-		j+=1
-	return ret+win-loss
-
-
-
-def doubledown(handTotal , activeAce , dealerUpCard ):
-	expectation = 0.0
-#//normal valued card
-	for t in range(2,10):
-		expectation += stand(handTotal + t, dealerUpCard)
-#//10 or face card
-	expectation += 4.0*stand(handTotal + 10, dealerUpCard)
-#//ace -- handled different
-	if(handTotal < 11):
-		expectation += stand(handTotal + 11, dealerUpCard)
-	else:
-		expectation += stand(handTotal + 1,dealerUpCard)
-	return 2*expectation / 13.0 #; //average of all possibilities & two times the bet 
-	
-#def split()
-print hit(13,True, 5)
+myfile = open('Policy.txt', 'wb')
+myfile.write(data)
+myfile.close()
+# print2DArray(evSplit)
